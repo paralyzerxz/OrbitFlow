@@ -1,82 +1,55 @@
 # editor.py
-# Script responsável por sobrepor legendas automáticas em um vídeo MP4
-# usando MoviePy v1.0.3. As legendas são lidas do arquivo .json do vídeo,
-# dividindo o clipe em segmentos iguais — um por frase da chave "captions".
+# ─────────────────────────────────────────────────────────────────────────────
+# RESPONSABILIDADE: Etapa 5 do pipeline — renderização de legendas no vídeo.
+#
+# Lê o vídeo baixado pelo downloader.py e o arquivo .json gerado pelo
+# publisher_helper.py, extrai as legendas da chave "captions" e as sobrepõe
+# no vídeo em segmentos de tempo iguais usando MoviePy + ImageMagick local.
+#
+# FLUXO:
+#   main() → load_captions() → create_subtitle_clips() → final_video.mp4
+#
+# DEPENDÊNCIA: downloader.py e publisher_helper.py devem ter rodado antes
+#   para gerar o .mp4 e o .json dentro de ready_to_post/<slug>/.
+# ─────────────────────────────────────────────────────────────────────────────
 
 import os
 import json
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
-from moviepy.config import change_settings
+from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip # type: ignore
+from moviepy.config import change_settings # type: ignore
 
 # =============================================================================
 # CONFIGURAÇÃO DO IMAGEMAGICK
 # -----------------------------------------------------------------------------
-# O MoviePy usa o ImageMagick para renderizar texto como imagem (TextClip).
-# Precisamos apontar explicitamente para o executável "magick.exe".
+# O MoviePy precisa do ImageMagick para transformar texto em imagem (TextClip).
+# Sem essa configuração, o script não consegue renderizar as legendas.
 #
-# Estrutura instalada localmente:
-#   ready_to_post\
-#     IMAGEMAGICK\
-#       ImageMagick-7.1.2-Q16-HDRI\
-#         magick.exe   ← executável real do ImageMagick
+# O ImageMagick está instalado localmente neste projeto (não no sistema),
+# dentro da pasta ready_to_post/IMAGEMAGICK/. Apontamos para o magick.exe
+# que fica dentro da subpasta da versão instalada.
 # =============================================================================
 IMAGEMAGICK_BINARY = (
-    r"D:\Meus Projetos IDE\Antigravity\Shorts"
+    r"D:\Meus Projetos IDE\OrbitFlow\Shorts"
     r"\ready_to_post\IMAGEMAGICK\ImageMagick-7.1.2-Q16-HDRI\magick.exe"
 )
+# Informa ao MoviePy onde o ImageMagick está antes de qualquer uso
 change_settings({"IMAGEMAGICK_BINARY": IMAGEMAGICK_BINARY})
 
 
-# =============================================================================
-# CAMINHOS DOS ARQUIVOS
-# -----------------------------------------------------------------------------
-# LÓGICA DE DIRETÓRIOS (padrão ADS):
-#
-#   Raiz do projeto:
-#     D:\Meus Projetos IDE\Antigravity\Shorts\
-#
-#   Subpasta de trabalho (ready_to_post):
-#     └── ready_to_post\
-#         └── you_wont_believe_these_5_life_hacks_are_real\  ← pasta do vídeo
-#               ├── you_wont_believe_these_5_life_hacks_are_real.mp4  ← entrada
-#               ├── you_wont_believe_these_5_life_hacks_are_real.json ← dados
-#               └── final_video.mp4                                   ← saída
-#
-# Usamos caminhos ABSOLUTOS (raw strings r"...") para evitar qualquer
-# ambiguidade em relação ao CWD (Current Working Directory) do terminal.
-# Com caminhos absolutos, o script funciona independentemente de onde
-# você o execute (ex: python editor.py ou python Shorts/editor.py).
-# =============================================================================
-
-# Pasta-mãe que contém o vídeo e o JSON — único lugar a editar para mudar o vídeo
-VIDEO_FOLDER = (
-    r"D:\Meus Projetos IDE\Antigravity\Shorts"
-    r"\ready_to_post\you_wont_believe_these_5_life_hacks_are_real"
-)
-
-# Nome-base compartilhado entre o .mp4 e o .json (convenção do pipeline)
-VIDEO_BASENAME = "you_wont_believe_these_5_life_hacks_are_real"
-
-# Caminho completo do vídeo de entrada
-VIDEO_PATH = os.path.join(VIDEO_FOLDER, f"{VIDEO_BASENAME}.mp4")
-
-# Caminho completo do arquivo JSON com os metadados (inclui chave "captions")
-JSON_PATH = os.path.join(VIDEO_FOLDER, f"{VIDEO_BASENAME}.json")
-
-# Caminho completo do vídeo final gerado pelo script
-OUTPUT_PATH = os.path.join(VIDEO_FOLDER, "final_video.mp4")
+# Removidas variáveis fixas VIDEO_FOLDER, VIDEO_BASENAME, VIDEO_PATH, JSON_PATH e OUTPUT_PATH
+# Agora elas serão injetadas diretamente na função main() ou get() para viabilizar autonomia.
 
 
 # =============================================================================
 # CONFIGURAÇÕES DE ESTILO DAS LEGENDAS
 # -----------------------------------------------------------------------------
 # Essas constantes controlam a aparência visual do texto sobreposto.
-# Altere-as para personalizar fontes, tamanhos e cores sem mexer na lógica.
+# Altere aqui para personalizar sem precisar mexer na lógica do script.
 # =============================================================================
-FONT       = "Arial"           # Fonte (deve estar instalada no sistema)
-FONT_SIZE  = 70                # Tamanho em pontos
-FONT_COLOR = "yellow"          # Cor do texto (nome CSS ou hex, ex: "#FFD700")
-SUBTITLE_POSITION = ("center", "bottom")  # Alinhamento: centralizado, parte inferior
+FONT       = "Arial"           # Fonte do texto (deve estar instalada no Windows)
+FONT_SIZE  = 70                # Tamanho em pontos — 70 é grande o suficiente para mobile
+FONT_COLOR = "yellow"          # Cor do texto: amarelo contrasta bem sobre qualquer fundo
+SUBTITLE_POSITION = ("center", "bottom")  # Posição: centralizado na parte inferior da tela
 
 
 # =============================================================================
@@ -85,30 +58,28 @@ SUBTITLE_POSITION = ("center", "bottom")  # Alinhamento: centralizado, parte inf
 
 def load_captions(json_path: str) -> list[str]:
     """
-    Lê o arquivo JSON do vídeo e extrai as frases da chave "captions".
+    Abre o arquivo JSON do vídeo e extrai as frases de legenda.
 
-    Estrutura esperada do JSON:
-        {
-            "captions": "Frase 1\\nFrase 2\\nFrase 3",
-            ...outros campos...
-        }
+    O campo "captions" no JSON é uma string única com as frases separadas
+    por quebra de linha (\\n). Exemplo do conteúdo:
+        "You had no idea\\nThis trick exists\\nNo tools needed"
 
-    O campo "captions" é uma string com frases separadas por '\\n'.
-    Esta função divide essa string numa lista de frases limpas.
+    Esta função abre o arquivo, lê esse campo e divide em uma lista:
+        ["You had no idea", "This trick exists", "No tools needed"]
 
     Raises:
-        FileNotFoundError: se o arquivo JSON não existir no caminho informado.
+        FileNotFoundError: se o arquivo JSON não existir.
         KeyError: se a chave "captions" não estiver no JSON.
         ValueError: se "captions" estiver vazio após o parse.
     """
-    # Abre e decodifica o JSON (UTF-8 para suportar acentos e emojis)
+    # Abre o arquivo com codificação UTF-8 (suporta acentos, emojis, etc.)
     with open(json_path, "r", encoding="utf-8") as f:
-        data: dict = json.load(f)
+        data: dict = json.load(f)  # Converte o texto JSON em dicionário Python
 
-    # Extrai o campo "captions" (string com \n entre frases)
+    # Lê o campo "captions" — uma string com frases separadas por \n
     raw_captions: str = data["captions"]
 
-    # Divide em linhas, remove espaços extras e filtra linhas vazias
+    # Divide em linhas, remove espaços extras das bordas e filtra linhas vazias
     phrases: list[str] = [line.strip() for line in raw_captions.splitlines() if line.strip()]
 
     if not phrases:
@@ -123,42 +94,55 @@ def create_subtitle_clips(
     video_width: int
 ) -> list[TextClip]:
     """
-    Gera uma lista de TextClips sincronizados ao vídeo.
+    Cria um TextClip (clip de texto animado) para cada frase de legenda,
+    sincronizado com o trecho correspondente do vídeo.
 
-    Lógica de sincronização:
-        - O vídeo é dividido em N segmentos de duração igual.
-        - Cada segmento recebe uma frase (index = segmento).
-        - Exemplo com 8 frases e 40s de vídeo → segmentos de 5s cada.
+    Lógica de sincronização por segmentos iguais:
+      - Divide a duração total do vídeo pelo número de frases
+      - Cada frase ocupa exatamente um segmento de tempo
+
+    Exemplo com 8 frases e 40 segundos de vídeo:
+      Segmento = 40 / 8 = 5 segundos por frase
+      Frase 1 → de 0s a 5s
+      Frase 2 → de 5s a 10s
+      ... e assim por diante
 
     Parâmetros:
-        phrases        : lista de frases extraídas do JSON
-        video_duration : duração total do vídeo em segundos
-        video_width    : largura do vídeo em pixels (para quebra de linha)
+      phrases        : lista de frases extraídas do JSON
+      video_duration : duração total do vídeo em segundos
+      video_width    : largura do vídeo em pixels (usada para quebra de linha)
     """
-    num_phrases     = len(phrases)
-    segment_duration = video_duration / num_phrases  # segundos por frase
+    num_phrases      = len(phrases)
+    segment_duration = video_duration / num_phrases  # duração de cada frase em segundos
 
     subtitle_clips: list[TextClip] = []
 
     for index, phrase in enumerate(phrases):
-        start_time = index * segment_duration          # início do segmento
-        end_time   = start_time + segment_duration     # fim do segmento
+        # Calcula o início e o fim deste segmento
+        start_time = index * segment_duration
+        end_time   = start_time + segment_duration
 
+        # Cria o clip de texto com as configurações de estilo definidas no topo
+        # Padrão ADS: Contorno em preto 'stroke_color="black"', 'stroke_width=2' para viabilizar legibilidade universal
         txt_clip = (
             TextClip(
                 phrase,
                 fontsize=FONT_SIZE,
                 font=FONT,
                 color=FONT_COLOR,
-                method="caption",           # habilita quebra de linha automática
-                size=(video_width, None)    # largura do vídeo; altura dinâmica
+                stroke_color='black',
+                stroke_width=2.5,
+                method="caption",           # Modo "caption": quebra de linha automática
+                size=(int(video_width * 0.9), None) # Largura: 90% da tela para margem segura
             )
-            .set_start(start_time)
-            .set_end(end_time)
-            .set_position(SUBTITLE_POSITION)
+            .set_start(start_time)          # Frase aparece neste instante do vídeo
+            .set_end(end_time)              # Frase desaparece neste instante
+            .set_position(SUBTITLE_POSITION) # Posição na tela (centro, parte inferior)
         )
 
         subtitle_clips.append(txt_clip)
+
+        # Mostra o progresso no terminal
         print(
             f"  Legenda [{index + 1:02d}/{num_phrases}] "
             f"{start_time:6.2f}s → {end_time:6.2f}s  |  \"{phrase}\""
@@ -171,71 +155,66 @@ def create_subtitle_clips(
 # FLUXO PRINCIPAL
 # =============================================================================
 
-def main() -> None:
-    """Orquestra a leitura, geração de legendas e exportação do vídeo final."""
+def main(video_folder: str, video_basename: str) -> str | None:
+    """
+    Orquestra todo o processo recebendo as variáveis dinamicamente do pipeline.
+    Retorna o caminho 'OUTPUT_PATH' se for bem sucedido, senão None.
+    """
+    video_path = os.path.join(video_folder, f"{video_basename}.mp4")
+    json_path = os.path.join(video_folder, f"{video_basename}.json")
+    output_path = os.path.join(video_folder, "final_video.mp4")
 
+    print("\n" + "=" * 65)
+    print(f"  Editor de Vídeo com Legendas — Animando: {video_basename}")
     print("=" * 65)
-    print("  Editor de Vídeo com Legendas — MoviePy v1.0.3")
-    print("=" * 65)
 
-    # ------------------------------------------------------------------
-    # ETAPA 1 — Verificar se os arquivos existem antes de abrir
-    # ------------------------------------------------------------------
-    # Fazemos as verificações upfront para dar mensagens de erro claras.
-    print(f"\n[1/4] Verificando arquivos...")
+    try:
+        print(f"\n[1/4] Verificando arquivos...")
+        for label, path in [("Vídeo", video_path), ("JSON", json_path)]:
+            if not os.path.isfile(path):
+                print(f"❌ {label} não encontrado em: {path}")
+                return None
+            print(f"      ✔ {label}: {path}")
 
-    for label, path in [("Vídeo", VIDEO_PATH), ("JSON", JSON_PATH)]:
-        if not os.path.isfile(path):
-            raise FileNotFoundError(
-                f"\n❌ {label} não encontrado!\n"
-                f"   Caminho verificado: {path}\n"
-                f"   Confira se VIDEO_FOLDER e VIDEO_BASENAME estão corretos."
-            )
-        print(f"      ✔ {label}: {path}")
+        print(f"\n[2/4] Lendo legendas de: {json_path}")
+        phrases = load_captions(json_path)
+        print(f"      {len(phrases)} frase(s) encontrada(s).")
+        
+        # Caso queira testar falha artificialmente: if not phrases: return None
 
-    # ------------------------------------------------------------------
-    # ETAPA 2 — Carregar frases do JSON
-    # ------------------------------------------------------------------
-    print(f"\n[2/4] Lendo legendas de: {JSON_PATH}")
-    phrases = load_captions(JSON_PATH)
-    print(f"      {len(phrases)} frase(s) encontrada(s):")
-    for i, p in enumerate(phrases, 1):
-        print(f"        {i}. {p}")
+        print(f"\n[3/4] Carregando vídeo: {video_path}")
+        video = VideoFileClip(video_path)
+        print(f"      Duração : {video.duration:.2f}s")
 
-    # ------------------------------------------------------------------
-    # ETAPA 3 — Carregar vídeo e gerar clips de legenda
-    # ------------------------------------------------------------------
-    print(f"\n[3/4] Carregando vídeo: {VIDEO_PATH}")
-    video = VideoFileClip(VIDEO_PATH)
-    print(f"      Duração : {video.duration:.2f}s")
-    print(f"      Resolução: {video.size[0]}x{video.size[1]}px")
-    print(f"      FPS      : {video.fps}")
+        print(f"\n      Gerando clip(s) de legenda...")
+        subtitle_clips = create_subtitle_clips(phrases, video.duration, video.size[0])
 
-    print(f"\n      Gerando {len(phrases)} clip(s) de legenda...")
-    subtitle_clips = create_subtitle_clips(phrases, video.duration, video.size[0])
+        print(f"\n[4/4] Exportando vídeo final: {output_path}")
+        final_video = CompositeVideoClip([video] + subtitle_clips)
 
-    # ------------------------------------------------------------------
-    # ETAPA 4 — Combinar e exportar
-    # ------------------------------------------------------------------
-    print(f"\n[4/4] Exportando vídeo final: {OUTPUT_PATH}")
-    final_video = CompositeVideoClip([video] + subtitle_clips)
+        final_video.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            fps=video.fps,
+            threads=4,
+            logger="bar"
+        )
 
-    final_video.write_videofile(
-        OUTPUT_PATH,
-        codec="libx264",    # codec H.264 — máxima compatibilidade
-        audio_codec="aac",  # áudio AAC — padrão para MP4
-        fps=video.fps,      # preserva FPS original do vídeo
-        threads=4,          # usa 4 threads para renderização paralela
-        logger="bar"        # exibe barra de progresso no terminal
-    )
+        video.close()
+        final_video.close()
 
-    # Libera handles de arquivo e memória
-    video.close()
-    final_video.close()
-
-    print("\n✅ Concluído com sucesso!")
-    print(f"   Arquivo salvo em:\n   {OUTPUT_PATH}")
-
+        print("\n✅ Concluído com sucesso!")
+        return output_path
+        
+    except Exception as e:
+        print(f"\n[ERRO EDITOR] Falha ao renderizar: {e}")
+        return None
 
 if __name__ == "__main__":
-    main()
+    # Apenas para teste local simulado. Em produção, este script será orquestrado pelo main_pipeline.py.
+    print("[Aviso] Executando editor dinâmico via terminal.")
+    # Exemplo mockado baseado na estrutura do projeto:
+    mock_base = "you_wont_believe_these_5_life_hacks_are_real"
+    mock_folder = os.path.join(r"D:\Meus Projetos IDE\OrbitFlow\Shorts\ready_to_post", mock_base)
+    main(video_folder=mock_folder, video_basename=mock_base)

@@ -22,14 +22,20 @@ import unicodedata
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 
+# Arquivo de entrada: vídeos transformados pelo transformer.py
 INPUT_FILE: str = "transformed_videos.json"
+
+# Pasta onde os pacotes prontos para publicação serão salvos
 OUTPUT_DIR: str = "ready_to_post"
 
 
 # ─── Utilitários ──────────────────────────────────────────────────────────────
 
 def load_transformed() -> list[dict]:
-    """Lê o arquivo gerado pelo transformer.py."""
+    """
+    Lê o arquivo transformed_videos.json gerado pelo transformer.py.
+    Retorna lista vazia se o arquivo não existir, sem travar o programa.
+    """
     if not os.path.exists(INPUT_FILE):
         print(f"[ERRO] Arquivo '{INPUT_FILE}' não encontrado. Execute o transformer.py primeiro.")
         return []
@@ -46,105 +52,129 @@ def load_transformed() -> list[dict]:
 
 def slugify(text: str) -> str:
     """
-    Converte um texto em um slug seguro.
+    Converte qualquer texto em um 'slug' — um nome seguro para usar como
+    nome de arquivo ou pasta, sem espaços nem caracteres especiais.
+
+    Exemplo: "You Won't Believe This!" → "you_wont_believe_this"
+
+    Passos:
+      1. Remove acentos (á → a, ç → c, etc.)
+      2. Remove tudo que não seja letra, número ou espaço
+      3. Troca espaços por underscores e coloca em minúsculo
+      4. Limita a 60 caracteres para nomes de arquivo razoáveis
     """
-    # 1. Normalização básica
+    # Passo 1: normaliza e remove acentos Unicode
     normalized = unicodedata.normalize("NFD", str(text))
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    
-    # 2. Limpeza de caracteres
+
+    # Passo 2: remove tudo que não for letra, número ou espaço
     clean = re.sub(r"[^a-zA-Z0-9\s]", "", ascii_text)
-    
-    # 3. Formatação do slug
+
+    # Passo 3: converte espaços em underscores e deixa tudo minúsculo
     slug_tmp = re.sub(r"\s+", "_", clean.strip()).lower()
-    
-    # 4. Truncamento sem usar fatiamento [:] (para evitar o bug do Pylance)
-    # Pegamos os primeiros 60 caracteres de forma ultra-segura
-    # 4. Truncamento ultra-seguro usando lista (evita bugs de fatiamento e concatenação)
+
+    # Passo 4: trunca em 60 caracteres de forma segura (sem slicing [:])
     chars: list[str] = []
     for char in str(slug_tmp):
         if len(chars) < 60:
             chars.append(char)
-    
-    # Juntamos no final - o linter aceita isso sem erros
-    res_final = "".join(chars)
-    return str(res_final)
 
-def build_viral_title(hooks: list, original_title: str) -> str:
+    return str("".join(chars))
+
+
+def build_viral_title(title: str, original_title: str) -> str:
     """
-    Escolhe o melhor gancho (hook) para usar como título do vídeo.
-    Usa o primeiro hook disponível; cai de volta ao título original se não houver.
-    O título é truncado em 100 chars — limite seguro para YouTube Shorts.
+    Escolhe o melhor título para o vídeo a ser postado.
+
+    O transformer.py com Gemini já nos entrega um 'viral_title' no campo "title".
+    Usamos ele, ou caímos pro original se falhar.
+
+    O título é truncado em 100 caracteres — limite seguro para YouTube Shorts.
     """
-    if hooks and len(str(hooks[0]).strip()) > 0:
-        title: str = str(hooks[0]).strip()
+    # Usa o título retornado pelo Gemini
+    if title and len(str(title).strip()) > 0:
+        final_title: str = str(title).strip()
     else:
-        title = str(original_title).strip()
+        # Fallback: usa o título original do vídeo
+        final_title = str(original_title).strip()
 
-  # Transformamos em lista, pegamos os 100 primeiros e juntamos. 
-    # O VS Code não consegue dar erro de tipagem nessa sequência.
-    title_list = list(str(title))
-    # 71. Criamos o título curto sem usar fatiamento [:]
+    # Trunca sem usar fatiamento [:] para evitar erros de tipagem
     short_title_list: list[str] = []
-    for char in title_list:
+    for char in list(str(final_title)):
         if len(short_title_list) < 100:
             short_title_list.append(char)
-            
-    # 72. Juntamos tudo no final
-    res_final = "".join(short_title_list)
-    return str(res_final)
+
+    return str("".join(short_title_list))
 
 
 def build_pinned_comment(hooks: list, captions: str) -> str:
     """
-    Monta um primeiro comentário fixado pensado para engajamento máximo.
-    Estrutura:
-      - Pergunta de engajamento (call-to-action)
-      - Os outros hooks como opções alternativas
-      - Incentivo ao follow
+    Monta o primeiro comentário fixado — aquele que o criador posta logo após
+    publicar o vídeo para incentivar engajamento (likes, follows, respostas).
+
+    Estrutura do comentário:
+      - Pergunta para o espectador responder (call-to-action)
+      - Os outros hooks como opções alternativas para curiosidade
+      - Prévia da primeira legenda do vídeo
+      - Convite para seguir o canal
     """
-    # Linha de abertura — o CTA principal
+    # Linha de abertura: pergunta que incentiva o espectador a interagir
     lines: list[str] = ["Would you try this? 👇"]
 
-   # Adiciona os hooks restantes pule o primeiro sem usar [1:]
+    # Adiciona os hooks alternativos (pula o primeiro, que virou o título)
     if len(hooks) > 1:
         lines.append("")
         lines.append("🔥 Other angles we loved:")
-        
-        # Usamos enumerate para pular o índice 0 de forma segura
+
+        # Percorre a lista e pula o índice 0 com enumerate (sem usar [1:])
         for i, hook in enumerate(hooks):
             if i == 0:
-                continue
+                continue  # Pula o primeiro hook (já usado como título)
             lines.append(f" -> {str(hook).strip()}")
 
-    # Primeira linha das legendas dinâmicas como prévia do conteúdo
+    # Adiciona a primeira linha das legendas como prévia do conteúdo
     if captions:
         first_caption_line: str = str(captions).split("\n")[0].strip()
         if first_caption_line:
             lines.append("")
             lines.append(f'📌 Opening caption: "{first_caption_line}"')
 
-    # CTA final
+    # CTA final: convite para seguir o canal
     lines.append("")
     lines.append("Follow for more viral content every day! 🚀")
 
+    # Une todas as linhas com quebra de linha
     return str("\n".join(lines))
 
 
 def build_package(video: dict) -> dict:
     """
-    Gera o pacote de publicação completo para um único vídeo.
-    Retorna um dict com todos os campos necessários para postar.
+    Recebe um vídeo transformado e monta o pacote completo de publicação.
+
+    O pacote contém tudo o que o criador precisa para postar:
+      - Título viral pronto para colar no YouTube/Instagram
+      - Todos os hooks gerados (para testes A/B)
+      - Comentário fixado pronto para copiar
+      - Legendas dinâmicas para sobrepor no vídeo
+      - Nome sugerido para o arquivo .mp4
     """
+    # Extrai e limpa os campos do vídeo
     hooks: list[str] = [str(h).strip() for h in video.get("hooks", [])]
-    original_title: str = str(video.get("title", "Untitled")).strip()
+    # O transformer salva o texto gerado por IA no campo "title"
+    # e o título do YouTube no campo "original_title".
+    title_from_ia: str = str(video.get("title", "")).strip()
+    original_title: str = str(video.get("original_title", "Untitled")).strip()
     captions: str = str(video.get("captions", "")).strip()
     url: str = str(video.get("url", "")).strip()
     upload_date: str = str(video.get("upload_date", "")).strip()
     view_count: int = int(video.get("view_count", 0))
 
-    viral_title: str = build_viral_title(hooks, original_title)
+    # Gera o título viral e o comentário fixado
+    viral_title: str = build_viral_title(title_from_ia, original_title)
     pinned_comment: str = build_pinned_comment(hooks, captions)
+
+    # Gera o slug do nome de arquivo a partir do título viral
+    # Fallback para o título original caso o viral esteja vazio
     filename_slug: str = slugify(viral_title) or slugify(original_title) or "untitled"
 
     return {
@@ -156,24 +186,35 @@ def build_package(video: dict) -> dict:
         "all_hooks": hooks,
         "pinned_comment": pinned_comment,
         "captions": captions,
-        "suggested_filename": str(f"{filename_slug}.mp4"),
-        "metadata_file": str(f"{filename_slug}.txt"),
+        "suggested_filename": str(f"{filename_slug}.mp4"),  # Nome do .mp4 a baixar
+        "metadata_file": str(f"{filename_slug}.txt"),       # Nome do .txt de publicação
     }
 
 
 def save_package(package: dict, index: int) -> None:
     """
-    Salva o pacote de publicação em duas coisas dentro de ready_to_post/:
-      1. Um arquivo .txt legível por humanos (para copiar e colar direto no app).
-      2. Um arquivo .json com todos os dados estruturados (para automação futura).
+    Salva o pacote de publicação em dois formatos dentro de ready_to_post/:
+
+      1. Arquivo .txt — legível e formatado para copiar e colar direto no app
+         (título, hooks, comentário fixado, legendas)
+
+      2. Arquivo .json — estruturado para uso futuro por scripts de automação
+         (downloader.py, editor.py, etc.)
+
+    Ambos os arquivos usam o mesmo slug como nome base.
     """
+    # Gera o nome base do arquivo a partir do título viral
     slug: str = slugify(str(package.get("viral_title", f"video_{index}")))
     base_name: str = slug or f"video_{index:03d}"
 
-    txt_path: str = os.path.join(OUTPUT_DIR, f"{base_name}.txt")
-    json_path: str = os.path.join(OUTPUT_DIR, f"{base_name}.json")
+    # Caminhos completos dos arquivos de saída (pasta do pacote específico)
+    folder_path: str = os.path.join(OUTPUT_DIR, base_name)
+    os.makedirs(folder_path, exist_ok=True)
+    
+    txt_path: str = os.path.join(folder_path, f"{base_name}.txt")
+    json_path: str = os.path.join(folder_path, f"{base_name}.json")
 
-    # ── Arquivo .txt (colar direto no YouTube/Instagram) ──────────────────────
+    # ── Arquivo .txt: formatado para copiar e colar no app de publicação ──────
     txt_lines: list[str] = [
         "─" * 60,
         f"📹 SUGGESTED FILENAME : {package.get('suggested_filename', '')}",
@@ -188,9 +229,11 @@ def save_package(package: dict, index: int) -> None:
         "🎯 ALL HOOKS (choose one or A/B test them):",
     ]
 
+    # Adiciona cada hook numerado
     for i, hook in enumerate(package.get("all_hooks", []), start=1):
         txt_lines.append(f"  {i}. {str(hook)}")
 
+    # Continua com o comentário fixado e as legendas
     txt_lines += [
         "",
         "📌 PINNED COMMENT (copy and pin this right after posting):",
@@ -204,6 +247,7 @@ def save_package(package: dict, index: int) -> None:
         "─" * 60,
     ]
 
+    # Salva o arquivo .txt
     try:
         with open(txt_path, "w", encoding="utf-8") as f:
             f.write("\n".join(txt_lines))
@@ -211,7 +255,7 @@ def save_package(package: dict, index: int) -> None:
     except Exception as e:
         print(f"  ✗ Falha ao salvar TXT: {e}")
 
-    # ── Arquivo .json (para automação futura) ─────────────────────────────────
+    # ── Arquivo .json: para uso por outros scripts do pipeline ────────────────
     try:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(package, f, ensure_ascii=False, indent=4)
@@ -226,11 +270,13 @@ def save_package(package: dict, index: int) -> None:
 
 def publish() -> None:
     """
-    Lê todos os vídeos transformados, gera os pacotes e salva na pasta ready_to_post/.
+    Função principal: lê todos os vídeos transformados e gera um pacote
+    de publicação completo para cada um deles na pasta ready_to_post/.
     """
-    # Cria a pasta de destino se não existir
+    # Garante que a pasta de destino existe antes de tentar escrever nela
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+    # Carrega os vídeos transformados pelo transformer.py
     videos: list[dict] = load_transformed()
 
     if not videos:
@@ -244,7 +290,9 @@ def publish() -> None:
         print(f"[{i}/{len(videos)}] {title}")
 
         try:
+            # Monta o dicionário completo com todos os dados para publicação
             package: dict = build_package(video)
+            # Salva os arquivos .txt e .json na pasta ready_to_post/
             save_package(package, i)
         except Exception as e:
             print(f"  ✗ Falhou: {e}")

@@ -23,10 +23,10 @@ import yt_dlp  # type: ignore
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 
-# Arquivo de entrada: gerado pelo miner.py
-INPUT_FILE: str = "raw_candidates.json"
+# Arquivo de entrada: gerado pelo transformer.py com os vídeos e metadados IA
+INPUT_FILE: str = "transformed_videos.json"
 
-# Pasta raiz onde os vídeos serão salvos
+# Pasta raiz onde os vídeos serão salvos, um por subpasta
 OUTPUT_DIR: str = "ready_to_post"
 
 
@@ -35,22 +35,28 @@ OUTPUT_DIR: str = "ready_to_post"
 def slugify(text: str) -> str:
     """
     Converte um título em um slug seguro para usar como nome de pasta/arquivo.
-    Exemplo: "Iran, Israel & America!" → "iran_israel__america"
-    
-    Essa função é idêntica à do publisher_helper.py para garantir que o nome
+    Exemplo: "Iran, Israel & America!" → "iran_israel_america"
+
+    Esta função é idêntica à do publisher_helper.py para garantir que o nome
     do arquivo baixado seja sempre o mesmo nome esperado pelo pacote de publicação.
+
+    Passos:
+      1. Remove acentos (é → e, ç → c, etc.)
+      2. Remove tudo que não seja letra, número ou espaço
+      3. Substitui espaços por underscores e coloca em minúsculo
+      4. Limita a 60 caracteres para manter nomes de arquivo razoáveis
     """
-    # 1. Remove acentos e caracteres Unicode especiais
+    # Passo 1: normaliza Unicode e remove acentos
     normalized: str = unicodedata.normalize("NFD", str(text))
     ascii_text: str = normalized.encode("ascii", "ignore").decode("ascii")
 
-    # 2. Remove tudo que não for letras, números ou espaços
+    # Passo 2: remove características especiais (pontuação, símbolos, etc.)
     clean: str = re.sub(r"[^a-zA-Z0-9\s]", "", ascii_text)
 
-    # 3. Troca espaços por underscores e coloca em minúsculo
+    # Passo 3: espaços → underscores, tudo minúsculo
     slug_tmp: str = re.sub(r"\s+", "_", clean.strip()).lower()
 
-    # 4. Trunca em 60 caracteres de forma segura, sem usar fatiamento [:]
+    # Passo 4: trunca em 60 caracteres sem usar fatiamento [:] (evita erro de tipagem)
     chars: list[str] = []
     for char in str(slug_tmp):
         if len(chars) < 60:
@@ -62,7 +68,8 @@ def slugify(text: str) -> str:
 def load_candidates() -> list[dict]:
     """
     Abre o raw_candidates.json e retorna a lista de vídeos para baixar.
-    Retorna uma lista vazia se o arquivo não existir ou estiver corrompido.
+    Retorna uma lista vazia se o arquivo não existir ou estiver corrompido,
+    sem travar o programa — o usuário verá uma mensagem explicativa.
     """
     if not os.path.exists(INPUT_FILE):
         print(f"[ERRO] Arquivo '{INPUT_FILE}' não encontrado. Execute o miner.py primeiro.")
@@ -84,68 +91,71 @@ def load_candidates() -> list[dict]:
 
 def download_video(title: str, url: str) -> None:
     """
-    Baixa um único vídeo usando yt-dlp e o salva na pasta correta.
+    Baixa um único vídeo do YouTube usando yt-dlp e o salva na subpasta correta.
+
+    Organização dos arquivos:
+      ready_to_post/
+        iran_israel_america/            ← subpasta criada automaticamente
+          iran_israel_america.mp4       ← vídeo baixado
 
     Parâmetros do yt-dlp explicados:
-      - format: Define a qualidade do vídeo a baixar.
+      - format:
           'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-          Tenta primeiro o melhor vídeo MP4 + melhor áudio M4A;
-          se não achar, pega o melhor formato MP4 disponível;
-          se ainda assim não achar, pega o melhor que tiver.
+          Tenta primeiro o melhor vídeo MP4 + melhor áudio M4A.
+          Se não achar, pega o melhor MP4 disponível.
+          Se ainda assim não achar, pega o melhor formato que existir.
 
-      - outtmpl: Template do caminho e nome do arquivo de saída (Output Template).
-          Usamos o nosso próprio slug no lugar de %(title)s para garantir
-          que o nome do arquivo seja limpo, sem caracteres especiais,
-          e idêntico ao 'suggested_filename' gerado pelo publisher_helper.py.
+      - outtmpl:
+          Template do caminho de saída (Output Template).
+          Usamos o nosso próprio slug para garantir nomes limpos e previsíveis,
+          iguais ao campo 'suggested_filename' do publisher_helper.py.
 
-      - quiet: True → suprime o output verboso do yt-dlp no terminal.
+      - quiet: suprime o output verboso do yt-dlp no terminal.
 
-      - no_warnings: True → esconde avisos técnicos que poluem o terminal.
+      - no_warnings: esconde avisos técnicos (cookies, região, etc.).
 
-      - ignoreerrors: True → se um vídeo falhar, o programa continua em vez
-          de travar. Essencial para rodar um loop sem intervenção manual.
+      - ignoreerrors: se um vídeo falhar, o loop continua sem travar.
     """
+    # Converte o título em um nome de pasta/arquivo seguro
     slug: str = slugify(title)
 
-    # Cria uma subpasta exclusiva para este vídeo dentro de ready_to_post/
-    # Exemplo: ready_to_post/iran_israel_america/
+    # Cria a subpasta exclusiva para este vídeo dentro de ready_to_post/
     video_dir: str = os.path.join(OUTPUT_DIR, slug)
-    os.makedirs(video_dir, exist_ok=True)
+    os.makedirs(video_dir, exist_ok=True)  # exist_ok=True: não dá erro se já existir
 
-    # Caminho completo onde o arquivo .mp4 será salvo
-    # Exemplo: ready_to_post/iran_israel_america/iran_israel_america.mp4
+    # Caminho completo onde o arquivo .mp4 será salvo ao final do download
     output_path: str = os.path.join(video_dir, f"{slug}.mp4")
 
-    # ── Verificação: pula o download se o arquivo já existir ──────────────────
+    # ── Verificação: pula silenciosamente se o vídeo já foi baixado ───────────
+    # Isso evita re-downloads desnecessários em execuções repetidas do script
     if os.path.exists(output_path):
         print(f"  [PULANDO] Arquivo já existe: {output_path}")
         return
 
-    # ── Configuração do yt-dlp ────────────────────────────────────────────────
+    # ── Opções do yt-dlp ──────────────────────────────────────────────────────
     ydl_opts: dict = {
-        # Tenta MP4 com melhor qualidade; fallback para o melhor formato disponível
+        # Tenta o melhor MP4; fallback automático para outros formatos disponíveis
         "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
 
-        # outtmpl: caminho exato onde o arquivo será salvo.
-        # Usamos o nosso slug para ter um nome limpo e previsível.
-        # O yt-dlp adiciona a extensão correta (.mp4) automaticamente.
+        # Define o caminho exato de saída com o nosso slug limpo
+        # %(ext)s é substituído automaticamente pela extensão correta (ex: .mp4)
         "outtmpl": os.path.join(video_dir, f"{slug}.%(ext)s"),
 
-        # Modo silencioso — sem barra de progresso ou logs técnicos
+        # Modo silencioso: sem barra de progresso, sem logs técnicos
         "quiet": True,
 
         # Ignora avisos como cookies expirados ou restrições de região
         "no_warnings": True,
 
-        # Continua para o próximo vídeo em caso de erro, sem travar o loop
+        # Continua para o próximo vídeo se este falhar — essencial em loops longos
         "ignoreerrors": True,
     }
 
-    # ── Download ──────────────────────────────────────────────────────────────
+    # ── Executa o download ────────────────────────────────────────────────────
     try:
         print(f"  [BAIXANDO] {url}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            ydl.download([url])  # Passa a URL como lista (yt-dlp aceita múltiplas)
         print(f"  [OK] Salvo em: {output_path}")
     except Exception as e:
         print(f"  [ERRO] Falha ao baixar '{title}': {e}")
@@ -155,12 +165,13 @@ def download_video(title: str, url: str) -> None:
 
 def download_all() -> None:
     """
-    Lê todos os candidatos do raw_candidates.json e baixa cada um deles.
-    Vídeos já baixados são pulados automaticamente para economizar banda.
+    Função principal: lê todos os candidatos do raw_candidates.json e
+    baixa cada um deles. Vídeos já baixados são pulados automaticamente.
     """
-    # Garante que a pasta de destino raiz existe
+    # Cria a pasta raiz de destino caso ainda não exista
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+    # Carrega a lista de vídeos candidatos gerada pelo miner.py
     videos: list[dict] = load_candidates()
 
     if not videos:
@@ -170,8 +181,9 @@ def download_all() -> None:
     total: int = len(videos)
     print(f"[INFO] {total} vídeo(s) encontrado(s) em '{INPUT_FILE}'. Iniciando downloads...\n")
 
-    # Loop simples pelos vídeos — cada um é tratado de forma independente
+    # Percorre cada vídeo da lista e tenta baixar
     for i, video in enumerate(videos, start=1):
+        # Extrai título e URL com valores padrão seguros caso estejam ausentes
         title: str = str(video.get("title", f"video_{i}")).strip()
         url: str = str(video.get("url", "")).strip()
 

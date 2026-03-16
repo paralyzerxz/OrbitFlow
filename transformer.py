@@ -9,10 +9,8 @@ BASE_DIR = r"D:\Meus Projetos IDE\Orbit Flow Global\Shorts"
 INPUT_FILE = os.path.join(BASE_DIR, "raw_candidates.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "transformed_videos.json")
 
-GOOGLE_API_KEY = "AIzaSyDiC-MhrQspEywrXp10kwEmMT8Qzy9nldE"
-
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+genai.configure(api_key="AIzaSyDiC-MhrQspEywrXp10kwEmMT8Qzy9nldE")
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UTILITÁRIOS
@@ -36,6 +34,7 @@ def save_results(data: list[dict]) -> None:
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
         print(f"[OK] {len(data)} vídeos salvos em '{OUTPUT_FILE}'.")
+        print("Arquivo transformed_videos.json criado com sucesso!")
     except Exception as e:
         print(f"[ERRO] Falha ao salvar {OUTPUT_FILE}: {e}")
 
@@ -89,7 +88,7 @@ Respond ONLY in this exact JSON format (no markdown, no explanation, no code blo
 
     try:
         response = model.generate_content(
-            prompt, 
+            prompt,
             generation_config={"response_mime_type": "application/json"}
         )
         raw_content: str = response.text.strip()
@@ -137,9 +136,9 @@ def transform() -> None:
         result = transform_with_ai(video)
         if result:
             processed_list.append(result)
-            print(f"  ✓ Processado com Sucesso!")
+            print(f"  OK Processado com Sucesso!")
         else:
-            print(f"  ✗ Falha na IA. Pulando.")
+            print(f"  X Falha na IA. Pulando.")
 
     if processed_list:
         print(f"\n[RESULTADO] {len(processed_list)} vídeos concluídos.")

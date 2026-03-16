@@ -201,7 +201,7 @@ def main_loop():
         schedule.clear()
         if success:
             print(f"\n[Ciclo Concluído] Sucesso! A máquina entrará em dormência por 1 hora.")
-            schedule.every(1).hours.do(job)
+            schedule.every(30).minutes.do(job)
         else:
             print(f"\n[Ciclo Abortado] A operação falhou ou nenhum vídeo passou. Nova tentativa ágil em 2 minutos...")
             schedule.every(2).minutes.do(job)

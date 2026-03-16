@@ -15,7 +15,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 from datetime import datetime
-import pytz
+import pytz # type: ignore
 
 def get_best_posting_target() -> str:
     """

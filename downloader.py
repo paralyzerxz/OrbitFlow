@@ -134,8 +134,8 @@ def download_video(title: str, url: str) -> None:
 
     # ── Opções do yt-dlp ──────────────────────────────────────────────────────
     ydl_opts: dict = {
-        # Tenta o melhor MP4; fallback automático para outros formatos disponíveis
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        # Tenta o melhor formato de vídeo/áudio combinados; fallback para o melhor geral
+        "format": "bestvideo+bestaudio/best",
 
         # Define o caminho exato de saída com o nosso slug limpo
         # %(ext)s é substituído automaticamente pela extensão correta (ex: .mp4)

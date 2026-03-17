@@ -40,7 +40,7 @@ SEARCH_TERMS: list[str] = [
 MAX_RESULTS_PER_TERM: int = 50
 
 # Mínimo de visualizações para um vídeo ser considerado candidato
-MIN_VIEWS: int = 20_000
+MIN_VIEWS: int = 25_000
 
 
 # ─── Utilitários ──────────────────────────────────────────────────────────────
@@ -180,11 +180,9 @@ def fetch_videos(search_query: str, max_results: int, min_views: int) -> list[di
 
 # ─── Orquestrador Principal ───────────────────────────────────────────────────
 
-def mine() -> str | None:
+def fetch_videos_for_all_terms() -> list[dict]:
     """
-    Orquestrador: busca vídeos para todos os termos, descarta duplicatas,
-    ordena por view_count e seleciona apenas o TOP 1 absoluto para esta execução.
-    Retorna o título processado (slug) se encontrou, caso contrário None.
+    Busca vídeos para todos os termos e retorna uma lista consolidada.
     """
     all_new_videos: list[dict] = []
     seen_urls_this_run: set[str] = set()
@@ -201,6 +199,16 @@ def mine() -> str | None:
             if url and url not in seen_urls_this_run:
                 all_new_videos.append(video)
                 seen_urls_this_run.add(url)
+    return all_new_videos
+
+
+def mine() -> str | None:
+    """
+    Orquestrador: busca vídeos para todos os termos, descarta duplicatas,
+    ordena por view_count e seleciona apenas o TOP 1 absoluto para esta execução.
+    Retorna o título processado (slug) se encontrou, caso contrário None.
+    """
+    all_new_videos = fetch_videos_for_all_terms()
 
     if all_new_videos:
         # Padrão ADS: Ordena vídeos de forma decrescente por visualizações e pega o maior

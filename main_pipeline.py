@@ -16,7 +16,9 @@ import schedule # type: ignore
 
 # Importa os módulos do pipeline
 import time_manager # type: ignore
-import miner # type: ignore
+import Youtube_miner # type: ignore
+import tiktok_miner # type: ignore
+import instagram_miner # type: ignore
 import transformer # type: ignore
 import publisher_helper # type: ignore
 import downloader # type: ignore
@@ -81,12 +83,48 @@ def run_pipeline():
     print(f" 🎯 Rota Sugerida: {target_suggestion.replace('\n', ' ')}")
     print("=" * 65)
     
-    # --- PASSO 1: Mineração ---
-    print("\n---> PASSO 1: MINERAÇÃO")
-    top_video_title = miner.mine()
-    if not top_video_title:
-        print("[Pipeline] Nenhum vídeo passou nos filtros. Abortando ciclo.")
+    # --- PASSO 1: Mineração Multi-Plataforma ---
+    # TODO: Adicionar tiktok_miner e instagram_miner no Passo 1 (Já conectados!)
+    print("\n---> PASSO 1: MINERAÇÃO (YouTube, TikTok, Instagram)")
+    
+    candidates = []
+    
+    # YouTube (Original)
+    print("[OPERAÇÃO] Minerando YouTube...")
+    yt_videos = Youtube_miner.fetch_videos_for_all_terms()
+    for v in yt_videos:
+        v["platform"] = "youtube"
+        candidates.append(v)
+        
+    # TikTok
+    print("[OPERAÇÃO] Minerando TikTok...")
+    try:
+        tk_videos = tiktok_miner.mine_tiktok()
+        candidates.extend(tk_videos)
+    except Exception as e:
+        print(f"  [Aviso] Falha no TikTok: {e}")
+        
+    # Instagram
+    print("[OPERAÇÃO] Minerando Instagram...")
+    try:
+        ig_videos = instagram_miner.mine_instagram()
+        candidates.extend(ig_videos)
+    except Exception as e:
+        print(f"  [Aviso] Falha no Instagram: {e}")
+
+    if not candidates:
+        print("[Pipeline] Nenhum vídeo encontrado em nenhuma plataforma. Abortando ciclo.")
         return False
+        
+    # Escolhe o Top 1 Global (Maior Visualização/likes-normalizado)
+    candidates.sort(key=lambda x: x.get("view_count", 0), reverse=True)
+    top_video = candidates[0]
+    
+    print(f"\n[VENCEDOR GLOBAL] {top_video['platform'].upper()}: '{top_video.get('title')}' ({top_video.get('view_count')} score)")
+    
+    # Salva o Top 1 no json para o transformer
+    Youtube_miner.save_to_json([top_video])
+    top_video_title = top_video.get('title')
         
     # --- PASSO 2: IA ---
     print("\n---> PASSO 2: TRANSFORMAÇÃO (IA GEMINI)")

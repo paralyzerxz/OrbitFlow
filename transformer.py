@@ -20,8 +20,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_FILE = os.path.join(BASE_DIR, "raw_candidates.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "transformed_videos.json")
 
-# Configuração exata conforme solicitado para evitar erro 404
-# Linha 24 (CORRETA - Deixe como está)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # ─────────────────────────────────────────────────────────────────────────────

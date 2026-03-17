@@ -36,7 +36,7 @@ def cleanup_workspace():
     para que o próximo ciclo de 8h comece do zero.
     """
     print("\n[Limpeza Padrão ADS] Iniciando faxina no workspace...")
-    files_to_remove = ["raw_candidates.json", "transformed_videos.json"]
+    files_to_remove = ["transformed_videos.json"]
     
     for f in files_to_remove:
         path = os.path.join(BASE_DIR, f)
@@ -113,9 +113,12 @@ def run_pipeline():
         candidates.extend(ig_candidates)
     except Exception as e:
         print(f"  [Aviso] Falha no Instagram: {e}")
+        
     if not candidates:
-        print("[Pipeline] Nenhum vídeo encontrado em nenhuma plataforma. Abortando ciclo.")
+        print("[Pipeline] Nenhum vídeo encontrado em nenhuma plataforma (YouTube/Tiktok/Instagram). Abortando ciclo.")
         return False
+    
+    print(f"[Pipeline] Total de {len(candidates)} candidatos encontrados.")
         
     # Escolhe o Top 1 Global (Maior Visualização/likes-normalizado)
     candidates.sort(key=lambda x: x.get("view_count", 0), reverse=True)
@@ -130,6 +133,11 @@ def run_pipeline():
     # --- PASSO 2: IA ---
     print("\n---> PASSO 2: TRANSFORMAÇÃO (IA GEMINI)")
     transformer.transform()
+    
+    # Verificacao de Seguranca: Se o transformer nao gerou nada (provavel erro de quota), abortamos o ciclo
+    if not os.path.exists(os.path.join(BASE_DIR, "transformed_videos.json")):
+        print("[AVISO] IA falhou em gerar resultados (Possivel limite de Quota).")
+        return False
     
     # --- PASSO 3: Publisher ---
     print("\n---> PASSO 3: PUBLICAÇÃO (PACOTES)")

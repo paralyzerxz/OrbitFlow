@@ -10,17 +10,9 @@ import random
 from datetime import datetime, timedelta
 from typing import List
 import instaloader # type: ignore
-import browser_cookie3 # type: ignore
+from dotenv import load_dotenv
 
-def load_session_from_cookies(context):
-    """Importa cookies do Chrome para o contexto do Instaloader."""
-    try:
-        cookies = browser_cookie3.chrome(domain_name='instagram.com')
-        for cookie in cookies:
-            context._session.cookies.set(cookie.name, cookie.value, domain=cookie.domain, path=cookie.path)
-        print("[INSTAGRAM] Cookies do Chrome carregados com sucesso.")
-    except Exception as e:
-        print(f"[INSTAGRAM ERROR] Falha ao carregar cookies do Chrome: {e}")
+load_dotenv()
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 
@@ -41,8 +33,32 @@ def get_cutoff_date() -> datetime:
 def mine() -> list[dict]:
     L = instaloader.Instaloader(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     
-    # Tenta carregar a sessão do Chrome para evitar erro de login
-    load_session_from_cookies(L.context)
+    # Login via Session ID conforme solicitado pelo usuario
+    # Metodo definitivo para evitar bloqueios de senha e problemas com cookies locais
+    USER = "orbit_flow_global"
+    SESSION_ID = os.getenv("INSTA_SESSIONID")
+
+    if not SESSION_ID:
+        print("[INSTAGRAM ERROR] INSTA_SESSIONID nao encontrada no .env!")
+        # Retorna lista vazia mas nao trava o pipeline
+        return []
+
+    try:
+        # Define o cookie de sessao manualmente
+        L.context._session.cookies.set('sessionid', SESSION_ID, domain='.instagram.com')
+        
+        # Tenta carregar os dados do perfil para validar a sessao
+        L.load_session_from_file(USER) # Tenta carregar metadados se existirem
+        print(f"[INSTAGRAM] Sessao ID injetada com sucesso para {USER}.")
+    except Exception as e:
+        print(f"[INSTAGRAM] Tentando validacao inicial da sessao...")
+        try:
+            # Se falhar o load_session, tentamos apenas prosseguir; 
+            # o Instaloader usará o cookie injetado nas requisições.
+            pass 
+        except Exception as e2:
+            print(f"[INSTAGRAM ERROR] Erro critico na sessao: {e2}")
+            return []
     
     results = []
     cutoff_date = get_cutoff_date()

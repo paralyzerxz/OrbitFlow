@@ -2,6 +2,7 @@ import os
 import json
 import google.generativeai as genai # type: ignore
 from dotenv import load_dotenv
+import time
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -19,7 +20,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_FILE = os.path.join(BASE_DIR, "raw_candidates.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "transformed_videos.json")
 
-model = genai.GenerativeModel('models/gemini-2.0-flash')
+# Configuração exata conforme solicitado para evitar erro 404
+# Linha 24 (CORRETA - Deixe como está)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UTILITÁRIOS
@@ -95,6 +98,9 @@ Respond ONLY in this exact JSON format (no markdown, no explanation, no code blo
   "captions": "line1\\nline2\\nline3\\n..."
 }}"""
 
+    # Rate limit protection
+    time.sleep(10)
+    
     try:
         response = model.generate_content(
             prompt,
@@ -130,6 +136,10 @@ Respond ONLY in this exact JSON format (no markdown, no explanation, no code blo
 # EXECUÇÃO DA ETAPA
 # ─────────────────────────────────────────────────────────────────────────────
 def transform() -> None:
+    # Forced wait to reset Gemini quota before any processing
+    print("[INFO] Protecao de Quota: Aguardando 60 segundos antes de iniciar a transformacao...")
+    time.sleep(60)
+    
     candidates: list[dict] = load_candidates()
     if not candidates:
         print("[INFO] Nenhum candidato para processar.")

@@ -18,6 +18,7 @@ import os
 import json
 import re
 import unicodedata
+import time_manager # type: ignore
 
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
@@ -143,8 +144,25 @@ def build_pinned_comment(hooks: list, captions: str) -> str:
     lines.append("")
     lines.append("Follow for more viral content every day! 🚀")
 
-    # Une todas as linhas com quebra de linha
+# Une todas as linhas com quebra de linha
     return str("\n".join(lines))
+
+
+def get_hashtags_for_target(target: str) -> str:
+    """
+    Retorna as hashtags de SEO adequadas para a região sugerida pelo time_manager.
+    """
+    target_lower = str(target).lower()
+
+    if "américa do norte" in target_lower or "eua" in target_lower or "canadá" in target_lower:
+        return "#USA #Canada #USAlifehacks #AmazonFindsUSA"
+    
+    if "europa" in target_lower or "reino unido" in target_lower or "uk" in target_lower:
+        return "#UK #London #ViralUK #EuropeHacks"
+
+    # Fallback para Oceania ou outros mercados globais
+    return "#ViralHacks #International #SmartHome"
+
 
 
 def build_package(video: dict) -> dict:
@@ -172,6 +190,15 @@ def build_package(video: dict) -> dict:
     # Gera o título viral e o comentário fixado
     viral_title: str = build_viral_title(title_from_ia, original_title)
     pinned_comment: str = build_pinned_comment(hooks, captions)
+
+    # Injeta a Rota Sugerida e as Hashtags de SEO (Alcance Internacional)
+    target = time_manager.get_best_posting_target()
+    hashtags = get_hashtags_for_target(target)
+
+    # Força as hashtags no final do título e no topo do comentário
+    viral_title = f"{viral_title} {hashtags}"
+    pinned_comment = f"{hashtags}\n\n{pinned_comment}"
+
 
     # Gera o slug do nome de arquivo a partir do título viral
     # Fallback para o título original caso o viral esteja vazio
@@ -216,6 +243,7 @@ def save_package(package: dict, index: int) -> None:
 
     # ── Arquivo .txt: formatado para copiar e colar no app de publicação ──────
     txt_lines: list[str] = [
+        "Language: English (US)", # Aviso forçado de idioma para SEO
         "─" * 60,
         f"📹 SUGGESTED FILENAME : {package.get('suggested_filename', '')}",
         f"🔗 SOURCE URL         : {package.get('source_url', '')}",

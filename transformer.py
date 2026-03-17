@@ -9,7 +9,7 @@ BASE_DIR = r"D:\Meus Projetos IDE\Orbit Flow Global\Shorts"
 INPUT_FILE = os.path.join(BASE_DIR, "raw_candidates.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "transformed_videos.json")
 
-genai.configure(api_key="AIzaSyDiC-MhrQspEywrXp10kwEmMT8Qzy9nldE")
+genai.configure(api_key="AIzaSyChOszcGVef2QP7T9X66MUmi9JqmAvaQO0")
 model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 # ─────────────────────────────────────────────────────────────────────────────

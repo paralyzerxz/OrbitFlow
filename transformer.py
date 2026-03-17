@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configura a API do Gemini imediatamente após carregar o .env
-api_key = os.environ.get("GOOGLE_API_KEY")
+api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
-    print("[ERRO] Variável de ambiente 'GOOGLE_API_KEY' não encontrada no arquivo .env!")
+    print("[ERRO] Variavel de ambiente 'GOOGLE_API_KEY' nao encontrada no arquivo .env!")
 genai.configure(api_key=api_key)
 
 # ─────────────────────────────────────────────────────────────────────────────

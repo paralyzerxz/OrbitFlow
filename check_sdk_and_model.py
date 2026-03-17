@@ -1,27 +1,17 @@
-import google.generativeai as genai
 import os
-from dotenv import load_dotenv
-
+from google import genai  # type: ignore
+from dotenv import load_dotenv  # type: ignore
 load_dotenv()
-print(f"SDK Version: {genai.__version__}")
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+# O segredo: a nova SDK usa Client(), não configure()
+client = genai.Client(api_key=os.getenv('GOOGLE_API_KEY'))
 
-# O usuario quer exatamente este nome sem models/
-model_name = 'gemini-1.5-flash'
+# Mude para 2.0 para matar o erro 404 de vez
+model_name = 'gemini-2.0-flash' 
 print(f"Testing model: {model_name}")
 
 try:
-    model = genai.GenerativeModel(model_name)
-    print(f"Model object created. Model name used: {model.model_name}")
-    response = model.generate_content("hi")
-    print("SUCCESS with gemini-1.5-flash")
+    # Novo método de geração da SDK google-genai
+    response = client.models.generate_content(model=model_name, contents="hi")
+    print(f"SUCCESS: {response.text}")
 except Exception as e:
-    print(f"FAIL with gemini-1.5-flash: {e}")
-
-# Fallback test para ver se pro funciona
-try:
-    model2 = genai.GenerativeModel('models/gemini-1.5-flash')
-    response2 = model2.generate_content("hi")
-    print("SUCCESS with models/gemini-1.5-flash")
-except Exception as e:
-    print(f"FAIL with models/gemini-1.5-flash: {e}")
+    print(f"FAIL: {e}")

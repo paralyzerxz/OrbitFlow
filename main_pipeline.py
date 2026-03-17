@@ -132,6 +132,13 @@ def run_pipeline():
         
     # --- PASSO 2: IA ---
     print("\n---> PASSO 2: TRANSFORMAÇÃO (IA GEMINI)")
+    
+    # Verificação de segurança: Garantir que o Minerador salvou o arquivo antes da transformação
+    raw_candidates_path = os.path.join(BASE_DIR, "raw_candidates.json")
+    if not os.path.exists(raw_candidates_path):
+        print(f"[ERRO] Mineração falhou em gerar '{raw_candidates_path}'. Abortando transformação.")
+        return False
+        
     transformer.transform()
     
     # Verificacao de Seguranca: Se o transformer nao gerou nada (provavel erro de quota), abortamos o ciclo

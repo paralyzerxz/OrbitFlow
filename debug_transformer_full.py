@@ -4,7 +4,7 @@ import os
 
 print("--- DEBUG TRANSFORMER ---")
 try:
-    import transformer
+    import transformer #type: ignore
     print("Transformer module imported successfully.")
     
     # Check if input file exists

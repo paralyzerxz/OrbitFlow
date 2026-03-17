@@ -1,30 +1,24 @@
 import os
-import google.generativeai as genai
-from dotenv import load_dotenv
+from google import genai #type: ignore
+from dotenv import load_dotenv #type: ignore
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+api_key = os.getenv("GOOGLE_API_KEY")
+client = genai.Client(api_key=api_key)
 
-print("Listing available models:")
+print("Listing available models using google.genai:")
 try:
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            print(f"Name: {m.name}")
+    for m in client.models.list():
+        print(f"Name: {m.name} (Methods: {m.supported_generation_methods})")
 except Exception as e:
     print(f"Error listing models: {e}")
 
-print("\nTesting 'gemini-1.5-flash':")
+print("\nTesting 'gemini-2.0-flash':")
 try:
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    response = model.generate_content("Hello")
-    print(f"Success with 'gemini-1.5-flash': {response.text}")
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents="Hello"
+    )
+    print(f"Success with 'gemini-1.0-flash': {response.text}")
 except Exception as e:
-    print(f"Error with 'gemini-1.5-flash': {e}")
-
-print("\nTesting 'models/gemini-1.5-flash':")
-try:
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
-    response = model.generate_content("Hello")
-    print(f"Success with 'models/gemini-1.5-flash': {response.text}")
-except Exception as e:
-    print(f"Error with 'models/gemini-1.5-flash': {e}")
+    print(f"Error with 'gemini-2.0-flash': {e}")

@@ -1,26 +1,28 @@
 import os
 import json
-import google.generativeai as genai # type: ignore
-from dotenv import load_dotenv
 import time
+from google import genai  # type: ignore
+from dotenv import load_dotenv  # type: ignore
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
-# Configura a API do Gemini imediatamente após carregar o .env
+# Configura o Cliente do Gemini utilizando a nova SDK google.genai
 api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
     print("[ERRO] Variavel de ambiente 'GOOGLE_API_KEY' nao encontrada no arquivo .env!")
-genai.configure(api_key=api_key)
+    
+client = genai.Client(api_key=api_key)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CONFIGURAÇÃO
-# ─────────────────────────────────────────────────────────────────────────────
+# --- CONFIGURAÇÃO ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_FILE = os.path.join(BASE_DIR, "raw_candidates.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "transformed_videos.json")
 
-model = genai.GenerativeModel('gemini-1.5-flash')
+MODEL_ID = 'gemini-2.0-flash' 
+
+# No topo ou dentro do loop de transformação:
+time.sleep(15) # Dá o tempo necessário para a Google resetar sua cota
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UTILITÁRIOS
@@ -100,9 +102,10 @@ Respond ONLY in this exact JSON format (no markdown, no explanation, no code blo
     time.sleep(10)
     
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt,
+            config={"response_mime_type": "application/json"}
         )
         raw_content: str = response.text.strip()
         print(f"\n[DEBUG IA] Resposta bruta da IA:\n{raw_content}\n")
@@ -143,7 +146,7 @@ def transform() -> None:
         print("[INFO] Nenhum candidato para processar.")
         return
 
-    print(f"[INFO] Processando {len(candidates)} vídeos com Gemini 1.5 Flash...\n")
+    print(f"[INFO] Processando {len(candidates)} vídeos com Gemini 2.0 Flash...\n")
     processed_list: list[dict] = []
 
     for i, video in enumerate(candidates, start=1):

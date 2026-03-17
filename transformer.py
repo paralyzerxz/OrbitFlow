@@ -3,18 +3,22 @@ import json
 import google.generativeai as genai # type: ignore
 from dotenv import load_dotenv
 
-# Carrega as variáveis de ambiente do arquivo .env de forma robusta
-env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-load_dotenv(dotenv_path=env_path)
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv()
+
+# Configura a API do Gemini imediatamente após carregar o .env
+api_key = os.environ.get("GOOGLE_API_KEY")
+if not api_key:
+    print("[ERRO] Variável de ambiente 'GOOGLE_API_KEY' não encontrada no arquivo .env!")
+genai.configure(api_key=api_key)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIGURAÇÃO
 # ─────────────────────────────────────────────────────────────────────────────
-BASE_DIR = r"D:\Meus Projetos IDE\Orbit Flow Global\Shorts"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_FILE = os.path.join(BASE_DIR, "raw_candidates.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "transformed_videos.json")
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('models/gemini-2.0-flash')
 
 # ─────────────────────────────────────────────────────────────────────────────

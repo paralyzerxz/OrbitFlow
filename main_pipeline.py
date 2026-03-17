@@ -79,8 +79,8 @@ def run_pipeline():
     target_suggestion = time_manager.get_best_posting_target()
     
     print("\n" + "=" * 65)
-    print(" 🚀 INICIANDO CICLO DO PIPELINE ORBITFLOW (GLOBAL 24/7)")
-    print(f" 🎯 Rota Sugerida: {target_suggestion.replace('\n', ' ')}")
+    print("  INICIANDO CICLO DO PIPELINE ORBITFLOW (GLOBAL 24/7)")
+    print(f"  Rota Sugerida: {target_suggestion.replace('\n', ' ')}")
     print("=" * 65)
     
     # --- PASSO 1: Mineração Multi-Plataforma ---
@@ -216,7 +216,7 @@ def run_pipeline():
         print("\n[OK] O upload foi encaminhado invisívelmente no background. (Mock)")
         return True
     else:
-        print("\n---> ❌ VÍDEO RECUSADO NO TELEGRAM.")
+        print("\n---> X VIDEO RECUSADO NO TELEGRAM.")
         cleanup_workspace()
         return False
 
@@ -227,7 +227,7 @@ def main_loop():
     Configura o pipeline principal para rodar a cada 8 horas, 
     ou a cada 5 minutos em caso de falha na captação de vídeos.
     """
-    print("\n[OrbitFlow] 🌐 Operação Global 24/7 Iniciada.")
+    print("\n[OrbitFlow] Operacao Global 24/7 Iniciada.")
     
     def job():
         success = False

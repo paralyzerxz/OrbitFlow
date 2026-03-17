@@ -88,13 +88,9 @@ def fetch_tiktok_videos(query: str) -> list[dict]:
         
     return results
 
-def mine_tiktok() -> list[dict]:
+def mine() -> list[dict]:
     all_videos = []
     seen_ids = set()
-    
-    # Shuffle terms to vary results
-    terms: List[str] = list(SEARCH_TERMS)
-    random.shuffle(terms)
     
     # Shuffle terms to vary results
     terms_to_check = list(SEARCH_TERMS)
@@ -103,8 +99,6 @@ def mine_tiktok() -> list[dict]:
     # Pegando apenas os 3 primeiros sem usar fatiamento [:]
     for i, term in enumerate(terms_to_check):
         if i >= 3: break
-        videos = fetch_tiktok_videos(term)
-        # ... o resto do seu código (for v in videos...)
         videos = fetch_tiktok_videos(term)
         for v in videos:
             if v["id"] not in seen_ids:
@@ -117,5 +111,5 @@ def mine_tiktok() -> list[dict]:
     return all_videos
 
 if __name__ == "__main__":
-    res = mine_tiktok()
+    res = mine()
     print(f"Encontrados {len(res)} vídeos no TikTok.")

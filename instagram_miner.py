@@ -27,25 +27,20 @@ MIN_LIKES: int = 5_000
 def get_cutoff_date() -> datetime:
     return datetime.now() - timedelta(days=7)
 
-def mine_instagram() -> list[dict]:
+def mine() -> list[dict]:
     L = instaloader.Instaloader(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     results = []
     cutoff_date = get_cutoff_date()
     
-   # Shuffle and pick few hashtags to avoid ban
-    hashtags_to_check: list = list(HASHTAGS)
-    random.shuffle(hashtags_to_check)
-
-# Shuffle and pick few hashtags to avoid ban
-    hashtags_to_check = list(HASHTAGS)
+    # Shuffle and pick few hashtags to avoid ban
+    hashtags_to_check: List[str] = list(HASHTAGS)
     random.shuffle(hashtags_to_check)
 
     # Pegando apenas os 2 primeiros sem usar fatiamento [:]
-    final_list = hashtags_to_check
-    for i, tag_name in enumerate(final_list):
+    for i, tag_name in enumerate(hashtags_to_check):
         if i >= 2: break
         print(f"[INSTAGRAM] Buscando hashtag: #{tag_name}...")
-        
+
         try:
 
             hashtag = instaloader.Hashtag.from_name(L.context, tag_name)
@@ -85,5 +80,5 @@ def mine_instagram() -> list[dict]:
     return results
 
 if __name__ == "__main__":
-    res = mine_instagram()
+    res = mine()
     print(f"Encontrados {len(res)} vídeos no Instagram.")

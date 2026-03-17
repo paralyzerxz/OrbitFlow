@@ -84,34 +84,35 @@ def run_pipeline():
     print("=" * 65)
     
     # --- PASSO 1: Mineração Multi-Plataforma ---
-    # TODO: Adicionar tiktok_miner e instagram_miner no Passo 1 (Já conectados!)
     print("\n---> PASSO 1: MINERAÇÃO (YouTube, TikTok, Instagram)")
     
     candidates = []
     
     # YouTube (Original)
     print("[OPERAÇÃO] Minerando YouTube...")
-    yt_videos = Youtube_miner.fetch_videos_for_all_terms()
-    for v in yt_videos:
-        v["platform"] = "youtube"
-        candidates.append(v)
+    try:
+        yt_candidates = Youtube_miner.mine()
+        for v in yt_candidates:
+            v["platform"] = "youtube"
+            candidates.append(v)
+    except Exception as e:
+        print(f"  [Aviso] Falha no YouTube: {e}")
         
     # TikTok
     print("[OPERAÇÃO] Minerando TikTok...")
     try:
-        tk_videos = tiktok_miner.mine_tiktok()
-        candidates.extend(tk_videos)
+        tk_candidates = tiktok_miner.mine()
+        candidates.extend(tk_candidates)
     except Exception as e:
         print(f"  [Aviso] Falha no TikTok: {e}")
         
     # Instagram
     print("[OPERAÇÃO] Minerando Instagram...")
     try:
-        ig_videos = instagram_miner.mine_instagram()
-        candidates.extend(ig_videos)
+        ig_candidates = instagram_miner.mine()
+        candidates.extend(ig_candidates)
     except Exception as e:
         print(f"  [Aviso] Falha no Instagram: {e}")
-
     if not candidates:
         print("[Pipeline] Nenhum vídeo encontrado em nenhuma plataforma. Abortando ciclo.")
         return False

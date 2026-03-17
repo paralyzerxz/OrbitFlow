@@ -202,14 +202,15 @@ def fetch_videos_for_all_terms() -> list[dict]:
     return all_new_videos
 
 
-def mine() -> str | None:
+def mine() -> list[dict]:
     """
-    Orquestrador: busca vídeos para todos os termos, descarta duplicatas,
-    ordena por view_count e seleciona apenas o TOP 1 absoluto para esta execução.
-    Retorna o título processado (slug) se encontrou, caso contrário None.
+    Orquestrador: busca vídeos para todos os termos e retorna a lista de candidatos.
     """
-    all_new_videos = fetch_videos_for_all_terms()
+    return fetch_videos_for_all_terms()
 
+
+if __name__ == "__main__":
+    all_new_videos = mine()
     if all_new_videos:
         # Padrão ADS: Ordena vídeos de forma decrescente por visualizações e pega o maior
         all_new_videos.sort(key=lambda x: x.get("view_count", 0), reverse=True)
@@ -219,10 +220,8 @@ def mine() -> str | None:
         
         # Salva somento o top 1 como uma lista de 1 elemento no json
         save_to_json([top_1_video])
-        return top_1_video.get('title')
     else:
         print("\n[RESULTADO] Nenhum vídeo novo passou nos filtros desta execução.")
-        return None
 
 
 if __name__ == "__main__":

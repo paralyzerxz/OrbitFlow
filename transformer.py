@@ -1,6 +1,10 @@
 import os
 import json
 import google.generativeai as genai # type: ignore
+from dotenv import load_dotenv
+
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIGURAÇÃO
@@ -9,7 +13,7 @@ BASE_DIR = r"D:\Meus Projetos IDE\Orbit Flow Global\Shorts"
 INPUT_FILE = os.path.join(BASE_DIR, "raw_candidates.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "transformed_videos.json")
 
-genai.configure(api_key="AIzaSyChOszcGVef2QP7T9X66MUmi9JqmAvaQO0")
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('models/gemini-2.0-flash')
 
 # ─────────────────────────────────────────────────────────────────────────────

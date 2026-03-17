@@ -99,12 +99,12 @@ def run_pipeline():
         print(f"  [Aviso] Falha no YouTube: {e}")
         
     # TikTok
-    print("[OPERAÇÃO] Minerando TikTok...")
-    try:
-        tk_candidates = tiktok_miner.mine()
-        candidates.extend(tk_candidates)
-    except Exception as e:
-        print(f"  [Aviso] Falha no TikTok: {e}")
+    # print("[OPERAÇÃO] Minerando TikTok...")
+    # try:
+    #     tk_candidates = tiktok_miner.mine()
+    #     candidates.extend(tk_candidates)
+    # except Exception as e:
+    #     print(f"  [Aviso] Falha no TikTok: {e}")
         
     # Instagram
     print("[OPERAÇÃO] Minerando Instagram...")

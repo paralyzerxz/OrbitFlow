@@ -3,8 +3,9 @@ import json
 import google.generativeai as genai # type: ignore
 from dotenv import load_dotenv
 
-# Carrega as variáveis de ambiente do arquivo .env
-load_dotenv()
+# Carrega as variáveis de ambiente do arquivo .env de forma robusta
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(dotenv_path=env_path)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIGURAÇÃO
